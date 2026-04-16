@@ -39,8 +39,8 @@ async def handle_user_text(message: Message):
         jlpt_result = await analyzer.analyze_text_jlpt(text_content)
 
     # Грамматика
-    grammar_level = "В разработке"
-    # grammar_level = await analyze_grammar_jlpt(text_content)
+    # grammar_level = "В разработке"
+    grammar_level = await analyze_grammar_jlpt(text_content)
 
     await message.answer(
         f"📊 Результат анализа:\n\n"
