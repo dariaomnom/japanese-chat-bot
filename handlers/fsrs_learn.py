@@ -18,9 +18,9 @@ FSRS_PREFIX = "fsrs_"
 
 def get_fsrs_keyboard(word_id: int, word_type: str, show_only_meaning_btn: bool = True) -> InlineKeyboardMarkup:
     """
-    Генерирует клавиатуру в зависимости от этапа:
-    - show_only_meaning_btn=True: только кнопка "Показать перевод"
-    - show_only_meaning_btn=False: только 4 кнопки оценки
+    Клавиатура в зависимости от этапа
+    show_only_meaning_btn=True только кнопка перевода
+    show_only_meaning_btn=False только 4 кнопки оценки
     """
     type_prefix = f"{FSRS_PREFIX}{word_type}_"
     if show_only_meaning_btn:
@@ -53,9 +53,13 @@ async def start_fsrs_learning(message: Message):
         if due_cards:
             card_data = due_cards[0]
             keyboard = get_fsrs_keyboard(card_data.word_id, card_data.word_type, show_only_meaning_btn=True)
-            await message.answer(f"<b>{card_data.surface}</b>", reply_markup=keyboard, parse_mode="HTML")
+            await message.answer(f"{card_data.surface}", reply_markup=keyboard, parse_mode="HTML")
         else:
-            await message.answer("🎉 Все слова на сегодня изучены!")
+            if limit == 0:
+                await message.answer("🎉 Все слова на сегодня изучены!\n"
+                                     "Установите новый лимит на день или добавьте кастомные карточки.")
+            else:
+                await message.answer("🎉 Все слова на сегодня изучены!")
 
     except Exception as e:
         print(f"Ошибка в /learn: {e}")
@@ -97,7 +101,7 @@ async def handle_fsrs_callback(callback: CallbackQuery):
         new_markup = get_fsrs_keyboard(word_id, word_type, show_only_meaning_btn=False)
         try:
             await callback.message.edit_text(
-                f"<b>{word.surface}</b> ({word.reading})\n\n{word.meaning}",
+                f"{word.surface} ({word.reading})\n\n{word.meaning}",
                 reply_markup=new_markup,
                 parse_mode="HTML"
             )
@@ -118,7 +122,7 @@ async def handle_fsrs_callback(callback: CallbackQuery):
         is_lapse = (action == "again")
         await update_fsrs_card(db_card, fsrs_engine.card_to_dict(new_card), is_lapse)
 
-        if db_card.reps == 1:
+        if db_card.reps == 1 and word_type == "dict":
             await callback.message.answer(
                 f"<b>{word.surface}</b> ({word.reading})\n{word.meaning}",
                 parse_mode="HTML"
@@ -130,7 +134,7 @@ async def handle_fsrs_callback(callback: CallbackQuery):
         if due_cards:
             next_item = due_cards[0]
             keyboard = get_fsrs_keyboard(next_item.word_id, next_item.word_type, show_only_meaning_btn=True)
-            await callback.message.answer(f"<b>{next_item.surface}</b>", reply_markup=keyboard, parse_mode="HTML")
+            await callback.message.answer(f"{next_item.surface}", reply_markup=keyboard, parse_mode="HTML")
         else:
             await callback.message.answer("🏁 Карточки на сегодня закончились!")
 
