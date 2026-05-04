@@ -16,7 +16,6 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_new_words_date = Column(DateTime, nullable=True)
     words_per_day = Column(Integer, default=5)
-    translation_language = Column(String, default="ru")
 
 
 class DictionaryWord(Base):
@@ -24,6 +23,5 @@ class DictionaryWord(Base):
     id = Column(Integer, primary_key=True)
     surface = Column(String, nullable=False)
     reading = Column(String)
-    meaning_en = Column(String)
     meaning = Column(String)
     jlpt_level = Column(String)
