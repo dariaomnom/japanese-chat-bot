@@ -16,7 +16,6 @@ async def load_dictionary():
                 word = DictionaryWord(
                     surface=row["Original"],
                     reading=row["Furigana"],
-                    meaning_en=row["English"],
                     meaning=row["Russian"],
                     jlpt_level=row["JLPT Level"],
                 )
