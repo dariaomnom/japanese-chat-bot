@@ -4,9 +4,9 @@ from aiogram.types import Message
 
 from ..db.crud import get_or_create_user
 from ..db.fsrs_crud import get_dict_words_for_user, get_custom_words_for_user
+from ..utils.message_utils import send_long_message
 
 router = Router()
-MAX_MESSAGE_LENGTH = 4000
 
 
 @router.message(Command("my_words"))
@@ -33,16 +33,8 @@ async def my_words(message: Message):
         for i, (_, word) in enumerate(custom_rows, 1):
             lines.append(f"{i}. {word.surface} ({word.reading}) — {word.meaning}")
 
-    # Разбивка на чанки
-    chunk = ""
-    for line in lines:
-        if len(chunk) + len(line) + 2 > MAX_MESSAGE_LENGTH:
-            await message.answer(chunk, parse_mode="HTML")
-            chunk = ""
-        chunk += line + "\n"
-
-    if chunk.strip():
-        await message.answer(chunk, parse_mode="HTML")
+    all_users_words = "\n".join(lines)
+    await send_long_message(message, all_users_words)
 
     if custom_rows:
         await message.answer("💡 Чтобы удалить своё слово, отправьте /delete_custom_word")
