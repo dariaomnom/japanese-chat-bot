@@ -3,11 +3,9 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from datetime import datetime, timezone
 
-from ..db.base import AsyncSessionLocal
-from ..db.fsrs_models import FSRSCard, CustomWord
 from ..db.crud import get_or_create_user
+from ..db.fsrs_crud import add_custom_words
 
 router = Router()
 
@@ -24,14 +22,14 @@ async def cmd_add(message: Message, state: FSMContext):
     ])
 
     sent_msg = await message.answer(
-        "📝 Отправьте данные в формате (каждое поле с новой строки):\n\n"
+        "📝 Отправьте одно или несколько слов в формате:\n\n"
         "<b>Слово</b>\n"
         "<b>Чтение</b> (или -)\n"
         "<b>Перевод</b>\n\n"
         "Пример:\n"
         "食べる\n"
         "たべる\n"
-        "есть",
+        "есть\n",
         reply_markup=keyboard,
         parse_mode="HTML"
     )
@@ -54,40 +52,21 @@ async def cancel_add(callback: CallbackQuery, state: FSMContext):
 async def process_add_word(message: Message, state: FSMContext):
     lines = [line.strip() for line in message.text.splitlines() if line.strip()]
 
-    if len(lines) != 3:
+    if not lines or len(lines) % 3 != 0:
         await message.answer(
-            "⚠️ Неправильный формат. Нужно ровно 3 строки:\n"
-            "1. Слово\n2. Чтение (или -)\n3. Перевод\n\n"
-            "Попробуйте отправить ещё раз:"
+            "⚠️ Неправильный формат. Данные должны идти блоками по 3 строки:\n"
+            "Слово\nЧтение (или -)\nПеревод\n\n"
+            "Если слов несколько, просто отправьте их друг за другом."
         )
         return
 
-    surface, reading, meaning = lines
+    words_data = []
+    for i in range(0, len(lines), 3):
+        words_data.append((lines[i], lines[i + 1], lines[i + 2]))
+
     user, _ = await get_or_create_user(message.from_user.id)
 
-    async with AsyncSessionLocal() as session:
-        custom_word = CustomWord(
-            user_id=user.id,
-            surface=surface,
-            reading=reading,
-            meaning=meaning
-        )
-        session.add(custom_word)
-        await session.flush()
-
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        fsrs_card = FSRSCard(
-            user_id=user.id,
-            word_id=custom_word.id,
-            word_type="custom",
-            due=now,
-            stability=0.1,
-            difficulty=5.0,
-            reps=0,
-            lapses=0
-        )
-        session.add(fsrs_card)
-        await session.commit()
+    added_count, errors = await add_custom_words(user.id, words_data)
 
     fsm_data = await state.get_data()
     instruction_msg_id = fsm_data.get("instruction_msg_id")
@@ -98,4 +77,15 @@ async def process_add_word(message: Message, state: FSMContext):
         pass
 
     await state.clear()
-    await message.answer(f"✅ Слово <b>{surface}</b> успешно добавлено в колоду!", parse_mode="HTML")
+
+    if added_count > 0:
+        last_surface = words_data[-1][0] if words_data else ""
+        if added_count == 1:
+            result_msg = f"✅ Слово <b>{last_surface}</b> успешно добавлено в колоду!"
+        else:
+            result_msg = f"✅ Успешно добавлено слов: <b>{added_count}</b>"
+        if errors:
+            result_msg += f"\n\n⚠️ Ошибки при добавлении:\n" + "\n".join(errors[:])
+        await message.answer(result_msg, parse_mode="HTML")
+    else:
+        await message.answer("Не удалось добавить ни одного слова. Проверьте формат.")
