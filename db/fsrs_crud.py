@@ -89,7 +89,7 @@ async def get_or_create_fsrs_card(user_id: int, word_id: int) -> FSRSCard:
 
 
 async def update_fsrs_card(card: FSRSCard, state: dict, is_lapse: bool = False):
-    """Обновляет состояние карточки после ответа"""
+    """Обновление состояния карточки после ответа"""
     async with AsyncSessionLocal() as session:
         card.stability = state["stability"]
         card.difficulty = state["difficulty"]
@@ -106,13 +106,13 @@ async def update_fsrs_card(card: FSRSCard, state: dict, is_lapse: bool = False):
 
 async def add_new_fsrs_words(user_id: int, count: int = 5) -> list:
     """
-    Добавляет новые слова постепенно от легких (N5) к сложным.
-    Внутри текущего уровня слова выбираются случайно.
+    Добавление новых слов постепенно от легких к сложным
+    Внутри текущего уровня слова выбираются случайно
     """
     async with AsyncSessionLocal() as session:
         # Проверка, учил ли пользователь новые слова сегодня
         user = await session.get(User, user_id)
-        if user.last_new_words_date and user.last_new_words_date.date() == datetime.now(timezone.utc).date():
+            if user.last_new_words_date and user.last_new_words_date.date() == datetime.now(timezone.utc).date():
             return []
 
         # ID слов, которые уже добавлены пользователю
@@ -190,6 +190,46 @@ async def get_custom_words_for_user(user_id: int):
             .order_by(FSRSCard.due.asc())
         )
         return (await session.execute(stmt)).all()
+
+
+async def add_custom_words(user_id: int, words_data: List[Tuple[str, str, str]]) -> Tuple[int, List[str]]:
+    """Массовое добавление кастомных слов и FSRS-карточек"""
+    added_count = 0
+    errors = []
+
+    async with AsyncSessionLocal() as session:
+        for surface, reading, meaning in words_data:
+            try:
+                custom_word = CustomWord(
+                    user_id=user_id,
+                    surface=surface,
+                    reading=reading,
+                    meaning=meaning
+                )
+                session.add(custom_word)
+                await session.flush()
+
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                fsrs_card = FSRSCard(
+                    user_id=user_id,
+                    word_id=custom_word.id,
+                    word_type="custom",
+                    due=now,
+                    stability=0.1,
+                    difficulty=5.0,
+                    reps=0,
+                    lapses=0
+                )
+                session.add(fsrs_card)
+                added_count += 1
+
+            except Exception as e:
+                errors.append(f"{surface}: {str(e)}")
+
+        if added_count > 0:
+            await session.commit()
+
+    return added_count, errors
 
 
 async def delete_custom_word(user_id: int, custom_word_id: int) -> bool:
