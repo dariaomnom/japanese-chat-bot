@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# DATABASE_URL = "sqlite+aiosqlite:///./smartjplearn.db"
 DATABASE_URL = "sqlite+aiosqlite:///../data/smartjplearn.db"
 
 engine = create_async_engine(
