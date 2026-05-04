@@ -15,6 +15,7 @@ from .handlers.fsrs_learn import router as fsrs_router
 from .handlers.settings import router as settings_router
 from .handlers.add_custom_word import router as add_custom_router
 from .handlers.delete_custom_word import router as delete_custom_router
+from .utils.message_utils import TimingMiddleware
 
 sys.path.append(str(Path(__file__).parent.parent.resolve()))
 
@@ -38,6 +39,9 @@ async def main():
 
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
+
+    dp.message.middleware(TimingMiddleware())
+    dp.callback_query.middleware(TimingMiddleware())
 
     dp.include_router(start_router)
     dp.include_router(fsrs_router)
